@@ -65,30 +65,12 @@ const getLastTrade = (binance) => {
   })
 }
 
-const getOpenBuyOrders = (binance) => {
+const getOpenOrders = (binance) => {
   return new Promise((resolve) => {
-    binance.openOrders("BUSDUSDT", (error, openOrders, symbol) => {
-      const buyOrders = openOrders.filter((order)=> order.side == 'BUY');
-      if(buyOrders.length){
-        let openBuyPrice = buyOrders[0].price;
-        resolve({ isOpenBuy: true, openBuyPrice });
-      } else {
-        resolve({ isOpenBuy: false, openBuyPrice: 0 });
-      }
-    });
-  })
-}
-
-const getOpenSellOrders = (binance) => {
-  return new Promise((resolve) => {
-    binance.openOrders("BUSDUSDT", (error, openOrders, symbol) => {
-      const sellOrders = openOrders.filter((order)=> order.side == 'SELL');
-      if(sellOrders.length){
-        let openSellPrice = sellOrders[0].price;
-        resolve({ isOpenSell: true, openSellPrice });
-      } else {
-        resolve({ isOpenSell: false, openSellPrice: 0 });
-      }
+    binance.openOrders("BUSDUSDT", (error, orders, symbol) => {
+      const openSellOrders = orders.filter((order)=> order.side == 'SELL');
+      const openBuyOrders = orders.filter((order)=> order.side == 'BUY');
+      resolve({ openBuyOrders, openSellOrders })
     });
   })
 }
@@ -120,16 +102,17 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
   getBalance(binance).then(async({ BUSD, USDT }) => {
     console.info("BUSD balance: ", BUSD);
     console.info("USDT balance: ", USDT);
+
+    const { openBuyOrders, openSellOrders } = await getOpenOrders(binance);
     /**
      * In an order
      */
     if(BUSD > 1){
       // my last buy in (trade), must be relevant because I am in the asset.
-      const { price, qty } = await getLastTrade(binance);
-      const { isOpenSell, openSellPrice } = await getOpenSellOrders(binance);
+      //const { price, qty } = await getLastTrade(binance);
       
       // and i've either already placed the sell limit order
-      if(isOpenSell){
+      if(openSellOrders.length){
         // Usually just wait for the sell order to go through.
         // In some cases we might want to sell for what the current price is,
         // i.e. incase it drops to the price beneath, 
@@ -145,12 +128,11 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
       }
     } else {
       // We are not in the asset, so we want to buy.
-      const { isOpenBuy, openBuyPrice } = await getOpenBuyOrders(binance)
       // and we don't have an open buy order open
       if(
-        currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-        && isOpenBuy == false 
-        && currentPrice > 0.9987 // no sell liquidity at less than 9987
+          currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+          && openBuyOrders.length == 0 // only buy if no buy orders open
+          && currentPrice > 0.9987 // no sell liquidity at less than 9987
         ){ 
         // never buy at 0.9996 //  must be lower.
         //const buyPrice = currentPrice - 0.0001;
