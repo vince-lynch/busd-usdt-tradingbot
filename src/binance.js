@@ -208,7 +208,7 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
       if(
           currentPrice < 0.9996 // no buy liquidity at more than 0.9995
           && openBuyOrders.length == 0 // only buy if no buy orders open
-          && currentPrice > 0.9986 // no sell liquidity at less than 9986
+          // no min buy price
         ){
           // never buy at 0.9996 //  must be lower.
           //const buyPrice = currentPrice - 0.0001;
@@ -216,11 +216,17 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
           logPosition(minPrice);
         }
 
-        if(openBuyOrders.length > 0){
+        if(
+            currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+            && openBuyOrders.length > 0
+            // no min buy price
+          ){
           /**
            * if price moves whilst trying to buy, update buy price to new lowest price
+           * if max price, is two ticks higher than where we want to buy in.. then adjust to 1 below.
+           * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
            */
-          if(maxPrice > position.priceAbove){
+          if(maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)){
             await updateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, minPrice);
           }
         }
