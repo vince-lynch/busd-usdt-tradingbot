@@ -1,0 +1,46 @@
+{
+  "name": "tradingapp",
+  "version": "0.1.0",
+  "description": "Use TradingView Chart Alerts to buy/sell crypto.",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Vince Lynch",
+  "license": "MIT",
+  "dependencies": {
+    "asciichart": "^1.5.25",
+    "body-parser": "^1.19.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "form-data": "^4.0.0",
+    "knex": "^0.21.17",
+    "mysql": "^2.18.1",
+    "node-binance-api": "^0.9.8",
+    "node-fetch": "^2.6.1",
+    "node-ssh": "^11.1.1",
+    "nodemon": "^2.0.4",
+    "pg": "^8.6.0",
+    "pg-hstore": "^2.3.3",
+    "sequelize": "^6.6.2",
+    "sequelize-cli": "^6.2.0",
+    "socket.io": "^4.0.1"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^3.6.0",
+    "@typescript-eslint/parser": "^3.6.0",
+    "eslint": "^7.25.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-prettier": "^7.2.0",
+    "eslint-plugin-const-case": "^1.2.2",
+    "eslint-plugin-cypress": "^2.11.2",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jsdoc": "^32.0.2",
+    "eslint-plugin-no-loops": "^0.3.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-promise": "^4.3.1",
+    "eslint-plugin-regexp": "^0.1.1",
+    "lint-staged": "^10.2.11",
+    "prettier": "^2.2.1"
+  }
+}
