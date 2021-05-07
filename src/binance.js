@@ -75,16 +75,28 @@ const getOpenOrders = (binance) => {
   })
 }
 
-const threePrices = {
-  priceBelow: 0,
-  priceBought: 0,
-  priceAbove: 0
+const position = {
+  priceBelow: null,
+  currentPosition: null,
+  priceAbove: null
 }
 
+const logPosition = (priceBought) => {
+  position.currentPosition = priceBought;
+  position.priceBelow = priceBought - 0.0001;
+  position.priceAbove = priceBought + 0.0001;
+  console.log('updated position, buy complete: ', position);
+}
+
+const clearPosition = () => {
+  position.currentPosition = null;
+  position.priceBelow = null;
+  position.priceAbove = null;
+  console.log('cleared position, sell complete: ', position);
+}
+
+
 let currentPrice = 0.9989;
-
-
-
 let dataLimit = 120;
 let dataSoFar = new Array(dataLimit)
 
@@ -97,6 +109,35 @@ const priceRange = () => {
   };
 }
 
+const cancelAllOrders = (binance, orderId) => {
+  return new Promise((resolve) => {
+    binance.cancel("BUSDUSDT",  orderId, (error, response, symbol) => {
+      console.info(symbol+" cancel response:", response);
+      resolve();
+    });
+  })
+}
+
+
+const setSellAtBreakEven = (binance, boughtInPrice) => {
+  binance.sell("BUSDUSDT", 12, boughtInPrice, {type:'LIMIT'}, (error, response) => {
+    console.log('limit sell error', error)
+    console.info("Limit sell response", response);
+    console.info("order id: " + response.orderId);
+  });
+}
+
+/**
+ * UpdateSellToBreakEven
+ * 
+ * Cancel sell order
+ * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
+ */
+const updateSellToBreakEven = async(binance, orderId) => {
+  await cancelAllOrders(binance,orderId);
+  await setSellAtBreakEven(binance, position.currentPosition);
+}
+
 
 const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) => {
   getBalance(binance).then(async({ BUSD, USDT }) => {
@@ -104,18 +145,28 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
     console.info("USDT balance: ", USDT);
 
     const { openBuyOrders, openSellOrders } = await getOpenOrders(binance);
+    //const { price, qty } = await getLastTrade(binance);
+
+
     /**
      * In an order
      */
     if(BUSD > 1){
       // my last buy in (trade), must be relevant because I am in the asset.
-      //const { price, qty } = await getLastTrade(binance);
-      
       // and i've either already placed the sell limit order
       if(openSellOrders.length){
         // Usually just wait for the sell order to go through.
         // In some cases we might want to sell for what the current price is,
         // i.e. incase it drops to the price beneath, 
+
+        /**
+         * Cancel sell order
+         * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
+         */
+        if(minPrice < position.priceBelow){
+          await updateSellToBreakEven(binance, openSellOrders[0].orderId);
+        }
+
       } else {
         // or I need to place the sell limit order
         // Sell at 1 above where you bought.
@@ -124,6 +175,8 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
           console.log('limit sell error', error)
           console.info("Limit sell response", response);
           console.info("order id: " + response.orderId);
+          // position isn't cleared until sell order limit has been filled
+          //clearPosition();
         });
       }
     } else {
@@ -134,9 +187,10 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
           && openBuyOrders.length == 0 // only buy if no buy orders open
           && currentPrice > 0.9987 // no sell liquidity at less than 9987
         ){ 
-        // never buy at 0.9996 //  must be lower.
-        //const buyPrice = currentPrice - 0.0001;
-        binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
+          // never buy at 0.9996 //  must be lower.
+          //const buyPrice = currentPrice - 0.0001;
+          binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
+          logPosition(minPrice);
       }
     }
   });
@@ -162,6 +216,10 @@ const startTerminalChart = (binance) => {
   setInterval(() => {
     // get prices so we can decide on how to trade
     const { maxPrice, minPrice, averagePrice, lastPrice } = priceRange();
+    // Need to write logic to determine position if already in asset when
+    // when the software loads..
+    console.log('currentPosition: ', position);
+
     doStuff(binance, { maxPrice, minPrice, averagePrice, lastPrice })
   }, 30 * 1000);
 }
