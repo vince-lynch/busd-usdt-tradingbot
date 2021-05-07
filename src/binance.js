@@ -1,4 +1,10 @@
 
+//const realLength = (arr) => arr.reduce((price) => price);
+const average = arr => arr.reduce( ( p, c ) => parseFloat(p) + parseFloat(c), 0 ) / arr.length;
+const max = arr => Math.max(...arr);
+const min = arr => Math.min(...arr);
+
+
 // never buy at 0.9996 //  must be lower.
 
 // never sell at 0.9986 // no liquidity.
@@ -95,7 +101,22 @@ const threePrices = {
 
 let currentPrice = 0.9989;
 
-const doStuff = async(binance) => {
+
+
+let dataLimit = 120;
+let dataSoFar = new Array(dataLimit)
+
+const priceRange = () => {
+  return { 
+    maxPrice: max(dataSoFar), 
+    minPrice: min(dataSoFar), 
+    averagePrice: average(dataSoFar), 
+    lastPrice: parseFloat(dataSoFar[dataSoFar.length -1])
+  };
+}
+
+
+const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) => {
   getBalance(binance).then(async({ BUSD, USDT }) => {
     console.info("BUSD balance: ", BUSD);
     console.info("USDT balance: ", USDT);
@@ -104,7 +125,7 @@ const doStuff = async(binance) => {
      */
     if(BUSD > 1){
       // my last buy in (trade), must be relevant because I am in the asset.
-      const { price, quantity } = await getLastTrade(binance);
+      const { price, qty } = await getLastTrade(binance);
       const { isOpenSell, openSellPrice } = await getOpenSellOrders(binance);
       
       // and i've either already placed the sell limit order
@@ -115,16 +136,25 @@ const doStuff = async(binance) => {
       } else {
         // or I need to place the sell limit order
         // Sell at 1 above where you bought.
-        const priceToSell = price + 0.0001;
-        binance.sell("BUSDUSDT", quantity, priceToSell, {type:'LIMIT'});
+        //const priceToSell = parseFloat(price) + 0.0001;
+        binance.sell("BUSDUSDT", 12, maxPrice, {type:'LIMIT'}, (error, response) => {
+          console.log('limit sell error', error)
+          console.info("Limit sell response", response);
+          console.info("order id: " + response.orderId);
+        });
       }
     } else {
       // We are not in the asset, so we want to buy.
       const { isOpenBuy, openBuyPrice } = await getOpenBuyOrders(binance)
       // and we don't have an open buy order open
-      if(currentPrice < 0.9996 && isOpenBuy == false){
+      if(
+        currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+        && isOpenBuy == false 
+        && currentPrice > 0.9987 // no sell liquidity at less than 9987
+        ){ 
         // never buy at 0.9996 //  must be lower.
-        binance.buy("BUSDUSDT", 12, currentPrice - 0.0001, {type:'LIMIT'});
+        //const buyPrice = currentPrice - 0.0001;
+        binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
       }
     }
   });
@@ -137,6 +167,8 @@ const startTradesListener = (binance) => {
     let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
 
     //console.log('price', price, 'quantity', quantity);
+    dataSoFar.shift() // remove first price
+    dataSoFar.push(price) // add a price
     currentPrice = price;
   });
 }
@@ -145,10 +177,10 @@ const startTradesListener = (binance) => {
 const startTerminalChart = (binance) => {
   startTradesListener(binance);
   //
-  doStuff(binance)
-  //
   setInterval(() => {
-    doStuff(binance)
+    // get prices so we can decide on how to trade
+    const { maxPrice, minPrice, averagePrice, lastPrice } = priceRange();
+    doStuff(binance, { maxPrice, minPrice, averagePrice, lastPrice })
   }, 30 * 1000);
 }
 
