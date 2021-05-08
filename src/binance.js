@@ -44,7 +44,7 @@ const getBalance = (binance) => {
   return new Promise(async(resolve)=> {
     binance.balance((error, balances) => {
       if ( error ) return console.error(error);
-      resolve({BUSD: balances.BUSD.available, USDT: balances.USDT.available })
+      resolve({BUSD: parseFloat(balances.BUSD.available), USDT: parseFloat(balances.USDT.available) })
     })
   });
 }
@@ -154,12 +154,81 @@ const setBuyAtNewLowest = (binance, minPrice) => {
  */
 const updateSellToBreakEven = async(binance, orderId) => {
   await cancelOrder(binance,orderId);
+  // not sure if maxPrice || or position.currentPosition is better level to sell
   await setSellAtBreakEven(binance, position.currentPosition);
 }
 
 const updateBuyPriceToNewLowest = async(binance, orderId, minPrice) => {
   await cancelOrder(binance,orderId);
   await setBuyAtNewLowest(binance, minPrice);
+}
+
+/**
+ * createOrAdjustBuyOrder
+ * 
+ * We are not in the asset, so we want to buy.
+ * and we don't have an open buy order open
+ */
+const createOrAdjustBuyOrder = async(binance, openBuyOrders, maxPrice, minPrice) => {
+  return new Promise(async(resolve) => {
+    if(
+      currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+      && openBuyOrders.length == 0 // only buy if no buy orders open
+      // no min buy price
+    ){
+      // never buy at 0.9996 //  must be lower.
+      //const buyPrice = currentPrice - 0.0001;
+      await binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
+      logPosition(minPrice);
+    }
+    if(
+        currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+        && openBuyOrders.length > 0
+        // no min buy price
+      ){
+      /**
+       * if price moves whilst trying to buy, update buy price to new lowest price
+       * if max price, is two ticks higher than where we want to buy in.. then adjust to 1 below.
+       * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
+       */
+      if(maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)){
+        await updateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, maxPrice, minPrice);
+      }
+    }
+    resolve();
+  })
+}
+
+
+/**
+ * createOrAdjustSellOrder
+ * my last buy in (trade), must be relevant because I am in the asset.
+ * and i've either already placed the sell limit order
+ */
+const createOrAdjustSellOrder = async(binance, openSellOrders, minPrice, maxPrice) => {
+  return new Promise(async(resolve) => {
+    if(openSellOrders.length){
+      // Usually just wait for the sell order to go through.
+      // In some cases we might want to sell for what the current price is,
+      // i.e. incase it drops to the price beneath, 
+  
+      /**
+       * if price moves whilst trying to sell, update sell price to break even price
+       * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
+       */
+      if(minPrice < position.priceBelow){
+        await updateSellToBreakEven(binance, openSellOrders[0].orderId, position.currentPosition); // not sure if maxPrice ||
+      }
+    } else {
+      // or I need to place the sell limit order
+      // Sell at 1 above where you bought.
+      //const priceToSell = parseFloat(price) + 0.0001;
+      const highestNumber = Math.max(position.priceAbove, maxPrice);
+
+      await binance.sell("BUSDUSDT", 12, highestNumber, {type:'LIMIT'});
+    }
+    resolve();
+  })
 }
 
 const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) => {
@@ -169,68 +238,19 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
 
     const { openBuyOrders, openSellOrders } = await getOpenOrders(binance);
     //const { price, qty } = await getLastTrade(binance);
-
-
     /**
      * In an order
      */
-    if(BUSD > 1){
+    //if(BUSD > 1){
       // my last buy in (trade), must be relevant because I am in the asset.
       // and i've either already placed the sell limit order
-      if(openSellOrders.length){
-        // Usually just wait for the sell order to go through.
-        // In some cases we might want to sell for what the current price is,
-        // i.e. incase it drops to the price beneath, 
+      await createOrAdjustSellOrder(binance, openSellOrders, minPrice, maxPrice);
 
-        /**
-         * if price moves whilst trying to sell, update sell price to break even price
-         * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
-         */
-        if(minPrice < position.priceBelow){
-          await updateSellToBreakEven(binance, openSellOrders[0].orderId);
-        }
-
-      } else {
-        // or I need to place the sell limit order
-        // Sell at 1 above where you bought.
-        //const priceToSell = parseFloat(price) + 0.0001;
-        binance.sell("BUSDUSDT", 12, maxPrice, {type:'LIMIT'}, (error, response) => {
-          console.log('limit sell error', error)
-          console.info("Limit sell response", response);
-          console.info("order id: " + response.orderId);
-          // position isn't cleared until sell order limit has been filled
-          //clearPosition();
-        });
-      }
-    } else {
+    //} else {
       // We are not in the asset, so we want to buy.
       // and we don't have an open buy order open
-      if(
-          currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-          && openBuyOrders.length == 0 // only buy if no buy orders open
-          // no min buy price
-        ){
-          // never buy at 0.9996 //  must be lower.
-          //const buyPrice = currentPrice - 0.0001;
-          binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
-          logPosition(minPrice);
-        }
-
-        if(
-            currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-            && openBuyOrders.length > 0
-            // no min buy price
-          ){
-          /**
-           * if price moves whilst trying to buy, update buy price to new lowest price
-           * if max price, is two ticks higher than where we want to buy in.. then adjust to 1 below.
-           * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
-           */
-          if(maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)){
-            await updateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, minPrice);
-          }
-        }
-    }
+      await createOrAdjustBuyOrder(binance, openBuyOrders, maxPrice, minPrice)
+    //}
   });
 }
 
@@ -241,7 +261,7 @@ const startTradesListener = (binance) => {
     //console.log('price', price, 'quantity', quantity);
     dataSoFar.shift() // remove first price
     dataSoFar.push(price) // add a price
-    currentPrice = price;
+    currentPrice = parseFloat(price);
   });
 }
 
@@ -249,7 +269,7 @@ const getPositionOnInit = async(binance) => {
   return new Promise(async(resolve) => {
     const lastTrade = await getLastTrade(binance);
     if(lastTrade.isBuyer){
-      logPosition(lastTrade.price)
+      logPosition(parseFloat(lastTrade.price))
       resolve(position);
     }
     resolve(position);
