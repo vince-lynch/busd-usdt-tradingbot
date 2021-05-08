@@ -16,7 +16,7 @@
     "form-data": "^4.0.0",
     "knex": "^0.21.17",
     "mysql": "^2.18.1",
-    "node-binance-api": "^0.9.8",
+    "node-binance-api": "^0.12.5",
     "node-fetch": "^2.6.1",
     "node-ssh": "^11.1.1",
     "nodemon": "^2.0.4",
