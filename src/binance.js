@@ -312,13 +312,13 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
     // We are not in the asset, so we want to buy.
     // and we don't have an open buy order open
   
-  //await createOrAdjustBuyOrder(binance, openBuyOrder, maxPrice, minPrice, lastPosition);
+  await createOrAdjustBuyOrder(binance, openBuyOrder, maxPrice, minPrice, lastPosition);
 
   // else {}
   // my last buy in (trade), must be relevant because I am in the asset.
   // and i've either already placed the sell limit order
   
-  //await createOrAdjustSellOrder(binance, openSellOrder, minPrice, maxPrice, lastPosition);
+  await createOrAdjustSellOrder(binance, openSellOrder, minPrice, maxPrice, lastPosition);
 
 //});
 }
