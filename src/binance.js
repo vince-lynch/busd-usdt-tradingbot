@@ -4,6 +4,10 @@ const average = arr => arr.reduce( ( p, c ) => parseFloat(p) + parseFloat(c), 0 
 const max = arr => Math.max(...arr);
 const min = arr => Math.min(...arr);
 
+// Globals
+let askQtyNow = 0;
+let bidQtyNow = 0;
+
 
 // never buy at 0.9996 //  must be lower.
 
@@ -65,16 +69,6 @@ const getLastTrade = (binance) => {
   })
 }
 
-const getOpenOrders = (binance) => {
-  return new Promise(async(resolve) => {
-    binance.openOrders("BUSDUSDT", (error, orders, symbol) => {
-      const openSellOrders = orders.filter((order)=> order.side == 'SELL');
-      const openBuyOrders = orders.filter((order)=> order.side == 'BUY');
-      resolve({ openBuyOrders, openSellOrders })
-    });
-  })
-}
-
 const position = {
   priceBelow: null,
   currentPosition: null,
@@ -83,7 +77,7 @@ const position = {
 
 const logPosition = (priceBought) => {
   position.currentPosition = parseFloat(priceBought);
-  position.priceBelow = parseFloat(priceBought) - 0.0001;
+  position.priceBelow = parseFloat(((priceBought) - 0.0001).toFixed(4));
   position.priceAbove = parseFloat(priceBought) + 0.0001;
   console.log('updated position, buy complete: ', position);
 }
@@ -169,21 +163,20 @@ const updateBuyPriceToNewLowest = async(binance, orderId, minPrice) => {
  * We are not in the asset, so we want to buy.
  * and we don't have an open buy order open
  */
-const createOrAdjustBuyOrder = async(binance, openBuyOrders, maxPrice, minPrice) => {
+const createOrAdjustBuyOrder = async(binance, openBuyOrder, maxPrice, minPrice, lastPosition) => {
   return new Promise(async(resolve) => {
     if(
       currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-      && openBuyOrders.length == 0 // only buy if no buy orders open
+      && openBuyOrder == null // only buy if no buy orders open
       // no min buy price
     ){
       // never buy at 0.9996 //  must be lower.
       //const buyPrice = currentPrice - 0.0001;
       await binance.buy("BUSDUSDT", 12, minPrice, {type:'LIMIT'});
-      logPosition(minPrice);
     }
     if(
         currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-        && openBuyOrders.length > 0
+        && openBuyOrder != null
         // no min buy price
       ){
       /**
@@ -191,8 +184,8 @@ const createOrAdjustBuyOrder = async(binance, openBuyOrders, maxPrice, minPrice)
        * if max price, is two ticks higher than where we want to buy in.. then adjust to 1 below.
        * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
        */
-      if(maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)){
-        await updateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, maxPrice, minPrice);
+      if(maxPrice > parseFloat(openBuyOrder.price) + 0.0001 || minPrice < parseFloat(openBuyOrder.price)){
+        await updateBuyPriceToNewLowest(binance, openBuyOrder.orderId, maxPrice, minPrice);
       }
     }
     resolve();
@@ -205,9 +198,9 @@ const createOrAdjustBuyOrder = async(binance, openBuyOrders, maxPrice, minPrice)
  * my last buy in (trade), must be relevant because I am in the asset.
  * and i've either already placed the sell limit order
  */
-const createOrAdjustSellOrder = async(binance, openSellOrders, minPrice, maxPrice) => {
+const createOrAdjustSellOrder = async(binance, openSellOrder, minPrice, maxPrice, lastPosition) => {
   return new Promise(async(resolve) => {
-    if(openSellOrders.length){
+    if(openSellOrder != null){
       // Usually just wait for the sell order to go through.
       // In some cases we might want to sell for what the current price is,
       // i.e. incase it drops to the price beneath, 
@@ -216,14 +209,14 @@ const createOrAdjustSellOrder = async(binance, openSellOrders, minPrice, maxPric
        * if price moves whilst trying to sell, update sell price to break even price
        * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
        */
-      if(minPrice < position.priceBelow){
-        await updateSellToBreakEven(binance, openSellOrders[0].orderId, position.currentPosition); // not sure if maxPrice ||
+      if(minPrice < lastPosition.priceBelow){
+        await updateSellToBreakEven(binance, openSellOrder.orderId, lastPosition.currentPosition); // not sure if maxPrice ||
       }
     } else {
       // or I need to place the sell limit order
       // Sell at 1 above where you bought.
       //const priceToSell = parseFloat(price) + 0.0001;
-      const highestNumber = Math.max(position.priceAbove, maxPrice);
+      const highestNumber = Math.max(lastPosition.priceAbove, maxPrice);
 
       await binance.sell("BUSDUSDT", 12, highestNumber, {type:'LIMIT'});
     }
@@ -231,27 +224,113 @@ const createOrAdjustSellOrder = async(binance, openSellOrders, minPrice, maxPric
   })
 }
 
+let openOrders = {
+  BUY: null,
+  SELL: null
+}
+
+const getOpenOrders = (binance) => {
+  return new Promise(async(resolve) => {
+    //
+    // need a way of clearing out orders that have gone through
+    //
+    var isBuyOrders = false;
+    var isSellOrders = false;
+
+    binance.openOrders("BUSDUSDT", (error, orders, symbol) => {
+
+      orders.forEach(({ side, price, time, orderId }) => {
+        var qtyBeforeYou = side == 'SELL' ? askQtyNow : bidQtyNow;
+        var secsUntil = qtyBeforeYou / (last30SecsQuantity / 30);
+
+        /**
+         * Need this to clear out 'gone' orders
+         */
+        if(side == 'BUY'){
+          isBuyOrders = true;
+        }
+        if(side == 'SELL'){
+          isSellOrders = true;
+        }
+
+        /**
+         * If no open order for that side
+         * or orderId for that side is (old?)
+         * then update our openOrders with these details
+         */
+        if(openOrders[side] == null || openOrders[side].orderId != orderId){
+          openOrders[side] = {
+            qtyBeforeYou,
+            secsUntil, // probably wrong because if less ask quantity than bid quantity then.. or, vice versa. your just taking amount per second
+            time,
+            expectedTime: time + (secsUntil * 1000), // unix,
+            price: parseFloat(price),
+            orderId
+          }
+        }
+        if(openOrders[side].orderId == orderId){
+          openOrders[side].secsLeft = (openOrders[side].expectedTime - Date.now()) / 1000;
+        }
+      })
+      // a way to clear out 'gone' orders
+      if(isBuyOrders == false){
+        openOrders['BUY'] = null;
+      }
+      if(isSellOrders == false){
+        openOrders['SELL'] = null;
+      }
+      console.log('currently openOrders: ', openOrders);
+      resolve(openOrders)
+    })
+  })
+}
+
+const getLastPosition = async(binance) => {
+  return new Promise(async(resolve) => {
+    const lastTrade = await getLastTrade(binance);
+    if(lastTrade.isBuyer){
+      logPosition(parseFloat(lastTrade.price))
+      resolve(position);
+    }
+    resolve(position);
+  })
+}
+
 const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) => {
-  getBalance(binance).then(async({ BUSD, USDT }) => {
-    console.info("BUSD balance: ", BUSD);
-    console.info("USDT balance: ", USDT);
+  const lastPosition =  await getLastPosition(binance);
+  //getBalance(binance).then(async({ BUSD, USDT }) => {
+  //  console.info("BUSD balance: ", BUSD);
+  //  console.info("USDT balance: ", USDT);
 
-    const { openBuyOrders, openSellOrders } = await getOpenOrders(binance);
-    //const { price, qty } = await getLastTrade(binance);
-    /**
-     * In an order
-     */
-    //if(BUSD > 1){
-      // my last buy in (trade), must be relevant because I am in the asset.
-      // and i've either already placed the sell limit order
-      await createOrAdjustSellOrder(binance, openSellOrders, minPrice, maxPrice);
+  const { BUY: openBuyOrder, SELL: openSellOrder } = await getOpenOrders(binance);
+  console.log('here')
+  //const { price, qty } = await getLastTrade(binance);
+  /**
+   * In an order
+   */
+  //if(BUSD < 1){
+    // We are not in the asset, so we want to buy.
+    // and we don't have an open buy order open
+  
+  //await createOrAdjustBuyOrder(binance, openBuyOrder, maxPrice, minPrice, lastPosition);
 
-    //} else {
-      // We are not in the asset, so we want to buy.
-      // and we don't have an open buy order open
-      await createOrAdjustBuyOrder(binance, openBuyOrders, maxPrice, minPrice)
-    //}
-  });
+  // else {}
+  // my last buy in (trade), must be relevant because I am in the asset.
+  // and i've either already placed the sell limit order
+  
+  //await createOrAdjustSellOrder(binance, openSellOrder, minPrice, maxPrice, lastPosition);
+
+//});
+}
+
+let tradeQuantities = [];
+let last30SecsQuantity = 0;
+
+const getTradeQuantities = () => {
+  var totalTraded = tradeQuantities.reduce((a, b) => a + b, 0);
+  tradeQuantities = []; // reset array.
+  last30SecsQuantity = totalTraded;
+  return totalTraded;
 }
 
 const startTradesListener = (binance) => {
@@ -262,19 +341,12 @@ const startTradesListener = (binance) => {
     dataSoFar.shift() // remove first price
     dataSoFar.push(price) // add a price
     currentPrice = parseFloat(price);
+    //
+    tradeQuantities.push(parseFloat(quantity));
   });
 }
 
-const getPositionOnInit = async(binance) => {
-  return new Promise(async(resolve) => {
-    const lastTrade = await getLastTrade(binance);
-    if(lastTrade.isBuyer){
-      logPosition(parseFloat(lastTrade.price))
-      resolve(position);
-    }
-    resolve(position);
-  })
-}
+
 
 const cancelAllOpenOrders = (binance) => {
   return new Promise(async(resolve) => {
@@ -291,12 +363,16 @@ const cancelAllOpenOrders = (binance) => {
   })
 }
 
+
 const startOrderBookListener = (binance) => {
   binance.websockets.depth(['BUSDUSDT'], ({ a, b }) => {
     let ask = { price: parseFloat(a[0][0]), total: parseFloat(a[0][1]) };
     let bid = { price: parseFloat(b[0][0]), total: parseFloat(b[0][1]) };
 
-    if(ask.total > bid.total){ 
+    askQtyNow = ask.total;
+    bidQtyNow = bid.total;
+
+    if(askQtyNow > bidQtyNow){ 
       console.log('price is moving down');
       // buy orders placed now should fill sooner than sell orders
     } else {
@@ -315,10 +391,12 @@ const startTerminalChart = async(binance) => {
   //await cancelAllOpenOrders(binance);
   // Need to write logic to determine position if already in asset when
   // when the software loads..
-  const positionNow = await getPositionOnInit(binance)
+  const positionNow = await getLastPosition(binance)
   console.log('currentPosition: ', positionNow);
   //
   setInterval(async() => {
+    console.log('in the last 30 seconds, quantity traded: ', getTradeQuantities());
+
     // get prices so we can decide on how to trade
     const { maxPrice, minPrice, averagePrice, lastPrice } = priceRange();
     console.log('currentPosition:', position);

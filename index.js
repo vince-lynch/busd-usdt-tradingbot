@@ -13,3 +13,8 @@ const binance = new Binance().options({
 
 
 startTerminalChart(binance);
+
+// binance.websockets.depthCache(['BUSDUSDT'], (symbol, depth) => {
+//   console.info(symbol+" market depth update");
+//   console.info(bidDepth, askDepth);
+// });
