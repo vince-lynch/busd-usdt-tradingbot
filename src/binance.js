@@ -5,41 +5,6 @@ const max = arr => Math.max(...arr);
 const min = arr => Math.min(...arr);
 
 
-// never buy at 0.9996 //  must be lower.
-
-// never sell at 0.9986 // no liquidity.
-
-
-
-
-
-// binance.trades("BUSDUSDT", (error, trades, symbol) => {
-//     console.info(symbol+" trade history", trades);
-// });
-
-// let quantity = 11, price = 0.069;
-// binance.buy("BUSDUSDT", quantity, price);
-// binance.sell("BUSDUSDT", quantity, price);
-
-//let quantity = 11, price = 0.9986;
-// binance.buy("BUSDUSDT", quantity, price, {type:'LIMIT'}, (error, response) => {
-//   console.info("Limit Buy response", response);
-//   console.info("order id: " + response.orderId);
-// });
-
-// binance.cancel("BUSDUSDT", orderid, (error, response, symbol) => {
-//     console.info(symbol+" cancel response:", response);
-//   });
-
-
-// AlWAYS HAVE 1 order or 1 trade placed (not both)
-
-
-
-const orderOrTrade = [];
-
-
-//console.info( await binance.cancelAll("BUSDUSDT") );
 const getBalance = (binance) => {
   return new Promise(async(resolve)=> {
     binance.balance((error, balances) => {
@@ -49,12 +14,6 @@ const getBalance = (binance) => {
   });
 }
 
-// binance.openOrders("BUSDUSDT", (error, openOrders, symbol) => {
-//   console.info("openOrders("+symbol+")", openOrders);
-// });
-// binance.trades("BUSDUSDT", (error, trades, symbol) => {
-//     console.info(symbol+" trade history", trades);
-// });
 
 const getLastTrade = (binance) => {
   return new Promise(async(resolve) => {
@@ -86,13 +45,6 @@ const logPosition = (priceBought) => {
   position.priceBelow = parseFloat(priceBought) - 0.0001;
   position.priceAbove = parseFloat(priceBought) + 0.0001;
   console.log('updated position, buy complete: ', position);
-}
-
-const clearPosition = () => {
-  position.currentPosition = null;
-  position.priceBelow = null;
-  position.priceAbove = null;
-  console.log('cleared position, sell complete: ', position);
 }
 
 
