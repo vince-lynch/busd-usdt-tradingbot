@@ -174,33 +174,36 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
     /**
      * In an order
      */
-    if(BUSD > 1){
+    if(BUSD > 2){
       // my last buy in (trade), must be relevant because I am in the asset.
       // and i've either already placed the sell limit order
       if(openSellOrders.length){
         // Usually just wait for the sell order to go through.
         // In some cases we might want to sell for what the current price is,
         // i.e. incase it drops to the price beneath, 
-
-        /**
-         * if price moves whilst trying to sell, update sell price to break even price
-         * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
-         */
-        if(minPrice < position.priceBelow){
-          await updateSellToBreakEven(binance, openSellOrders[0].orderId);
+        if(openBuyOrders.length == 0){
+          /**
+           * if price moves whilst trying to sell, update sell price to break even price
+           * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
+           */
+          if(minPrice < position.priceBelow){
+            await updateSellToBreakEven(binance, openSellOrders[0].orderId);
+          }
         }
 
       } else {
         // or I need to place the sell limit order
         // Sell at 1 above where you bought.
         //const priceToSell = parseFloat(price) + 0.0001;
-        binance.sell("BUSDUSDT", 12, maxPrice, {type:'LIMIT'}, (error, response) => {
-          console.log('limit sell error', error)
-          console.info("Limit sell response", response);
-          console.info("order id: " + response.orderId);
-          // position isn't cleared until sell order limit has been filled
-          //clearPosition();
-        });
+        if(openBuyOrders.length == 0){
+          binance.sell("BUSDUSDT", 12, maxPrice, {type:'LIMIT'}, (error, response) => {
+            console.log('limit sell error', error)
+            console.info("Limit sell response", response);
+            console.info("order id: " + response.orderId);
+            // position isn't cleared until sell order limit has been filled
+            //clearPosition();
+          });
+        }
       }
     } else {
       // We are not in the asset, so we want to buy.
@@ -208,6 +211,7 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
       if(
           currentPrice < 0.9996 // no buy liquidity at more than 0.9995
           && openBuyOrders.length == 0 // only buy if no buy orders open
+          && openSellOrders.length == 0
           // no min buy price
         ){
           // never buy at 0.9996 //  must be lower.
@@ -219,6 +223,7 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
         if(
             currentPrice < 0.9996 // no buy liquidity at more than 0.9995
             && openBuyOrders.length > 0
+            && openSellOrders.length == 0
             // no min buy price
           ){
           /**
@@ -276,7 +281,7 @@ const startTerminalChart = async(binance) => {
   startTradesListener(binance);
   //
   // Cancel open orders on load -- price has probably changed.
-  await cancelAllOpenOrders(binance);
+  //await cancelAllOpenOrders(binance);
   // Need to write logic to determine position if already in asset when
   // when the software loads..
   const positionNow = await getPositionOnInit(binance)
