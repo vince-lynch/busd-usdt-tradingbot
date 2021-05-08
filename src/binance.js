@@ -291,12 +291,28 @@ const cancelAllOpenOrders = (binance) => {
   })
 }
 
+const startOrderBookListener = (binance) => {
+  binance.websockets.depth(['BUSDUSDT'], ({ a, b }) => {
+    let ask = { price: parseFloat(a[0][0]), total: parseFloat(a[0][1]) };
+    let bid = { price: parseFloat(b[0][0]), total: parseFloat(b[0][1]) };
+
+    if(ask.total > bid.total){ 
+      console.log('price is moving down');
+      // buy orders placed now should fill sooner than sell orders
+    } else {
+      console.log('price is moving up');
+      // sell orders placed now should fill sooner than buy orders
+    }
+    //console.info("last updated: " + new Date(depth.eventTime));
+  });
+}
 
 const startTerminalChart = async(binance) => {
   startTradesListener(binance);
+  startOrderBookListener(binance);
   //
   // Cancel open orders on load -- price has probably changed.
-  await cancelAllOpenOrders(binance);
+  //await cancelAllOpenOrders(binance);
   // Need to write logic to determine position if already in asset when
   // when the software loads..
   const positionNow = await getPositionOnInit(binance)
