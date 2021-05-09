@@ -140,6 +140,16 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
           logPosition(minPrice);
       }
 
+      /**
+       * We dont want to hold above 0.9995, 
+       * but we dont mind having a 0.9995 buy waiting to go,
+       * for when it trends back down.
+       */
+      if(minPrice > 0.9995 && openBuyOrders.length == 0){
+        binance.buy("BUSDUSDT", 12, 0.9995, {type: 'LIMIT'});
+        logPosition(0.9995);
+      }
+
       if (currentPrice < 0.9996 // no buy liquidity at more than 0.9995
       && openBuyOrders.length > 0
       // no min buy price
