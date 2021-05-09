@@ -10,7 +10,7 @@ const getBalance = (binance) => {
                 return console.error(error);
             
 
-            resolve({BUSD: balances.BUSD.available, USDT: balances.USDT.available})
+            resolve({BUSD: parseFloat(balances.BUSD.available), USDT: parseFloat(balances.USDT.available)})
         })
     });
 }
@@ -129,7 +129,7 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
     if (BUSD < 3 && openSellOrders.length == 0) {
       // We are not in the asset, so we want to buy.
       // and we don't have an open buy order open
-      if (currentPrice < 0.9996 // no buy liquidity at more than 0.9995
+      if (currentPrice < 1.0004 // no buy liquidity at more than 0.9995
         && openBuyOrders.length == 0
         // only buy if no buy orders open
         // no min buy price
@@ -145,13 +145,13 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
        * but we dont mind having a 0.9995 buy waiting to go,
        * for when it trends back down.
        */
-      if(minPrice > 0.9995 && openBuyOrders.length == 0){
-        binance.buy("BUSDUSDT", 12, 0.9995, {type: 'LIMIT'});
-        logPosition(0.9995);
-      }
+      // if(minPrice > 0.9995 && openBuyOrders.length == 0){
+      //   binance.buy("BUSDUSDT", 12, 0.9995, {type: 'LIMIT'});
+      //   logPosition(0.9995);
+      // }
 
-      if (currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-      && openBuyOrders.length > 0
+      if (currentPrice < 1.0004 // no buy liquidity at more than 0.9995
+        && openBuyOrders.length > 0
       // no min buy price
       ) { /**
           * if price moves whilst trying to buy, update buy price to new lowest price
@@ -160,7 +160,7 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
           */
           if (maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)) {
 
-            if(parseFloat(openBuyOrders[0].price) > minPrice){
+            if(parseFloat(openBuyOrders[0].price) != minPrice){
               /**
                * Only update the buyOrder to new lowest,
                * if the minPrice is lower than the price on our currentBuyOrder
@@ -259,7 +259,7 @@ const startTradesListener = (binance) => {
         // console.log('price', price, 'quantity', quantity);
         dataSoFar.shift() // remove first price
         dataSoFar.push(price) // add a price
-        currentPrice = price;
+        currentPrice = parseFloat(price);
     });
 }
 
@@ -277,12 +277,12 @@ const getPositionOnInit = async (binance) => {
 const startTerminalChart = async (binance) => {
     startTradesListener(binance);
     //
-    const positionNow = await getPositionOnInit(binance)
+    const positionNow = await getPositionOnInit(binance);
     console.log('currentPosition: ', positionNow);
     //
     setInterval(async () => { // get prices so we can decide on how to trade
         const {maxPrice, minPrice, averagePrice, lastPrice} = priceRange();
-        console.log('currentPosition:', position);
+        console.log('currentPosition:', await getPositionOnInit(binance));
 
         doStuff(binance, {maxPrice, minPrice, averagePrice, lastPrice})
     }, 30 * 1000);
