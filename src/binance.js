@@ -1,7 +1,10 @@
+import fs from 'fs';
+const TRADES_LOG = `./src/trades/trades.json`;
+const POSITION_LOG = `./src/position/position.json`;
+
 const average = arr => arr.reduce((p, c) => parseFloat(p) + parseFloat(c), 0) / arr.length;
 const max = arr => Math.max(...arr);
 const min = arr => Math.min(...arr);
-
 
 const getBalance = (binance) => {
     return new Promise(async (resolve) => {
@@ -19,8 +22,11 @@ const getBalance = (binance) => {
 const getLastTrade = (binance) => {
     return new Promise(async (resolve) => {
         binance.trades("BUSDUSDT", (error, trades, symbol) => {
-            console.info(symbol + " trade history", trades[0]);
-            resolve(trades[trades.length - 1])
+          // Write to Trade file, so we can see whats going on
+          fs.writeFileSync(TRADES_LOG, JSON.stringify(trades));
+
+          console.info(symbol + " trade history", trades[0]);
+          resolve(trades[trades.length - 1])
         });
     })
 }
@@ -41,11 +47,15 @@ const position = {
     priceAbove: null
 }
 
-const logPosition = (priceBought) => {
-    position.currentPosition = parseFloat(priceBought);
-    position.priceBelow = parseFloat(priceBought) - 0.0001;
-    position.priceAbove = parseFloat(priceBought) + 0.0001;
-    console.log('updated position, buy complete: ', position);
+const logPosition = (trade) => {
+  var positionHeld = trade;
+  var price = parseFloat(positionHeld.price);
+  position.currentPosition = price;
+  position.priceBelow = parseFloat((price - 0.0001).toFixed(4));
+  position.priceAbove = parseFloat((price + 0.0001).toFixed(4));
+
+  fs.writeFileSync(POSITION_LOG, JSON.stringify({ ...position, ...trade }));
+  console.log('updated position, buy complete: ', position);
 }
 
 
@@ -137,7 +147,7 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
           // never buy at 0.9996 //  must be lower.
           // const buyPrice = currentPrice - 0.0001;
           binance.buy("BUSDUSDT", 12, minPrice, {type: 'LIMIT'});
-          logPosition(minPrice);
+          //logPosition(minPrice); -- no point logging this until it gets filled
       }
 
       /**
@@ -263,11 +273,11 @@ const startTradesListener = (binance) => {
     });
 }
 
-const getPositionOnInit = async (binance) => {
+const getPosition = async (binance) => {
     return new Promise(async (resolve) => {
         const lastTrade = await getLastTrade(binance);
         if (lastTrade.isBuyer) {
-            logPosition(lastTrade.price)
+            logPosition(lastTrade);
             resolve(position);
         }
         resolve(position);
@@ -277,12 +287,12 @@ const getPositionOnInit = async (binance) => {
 const startTerminalChart = async (binance) => {
     startTradesListener(binance);
     //
-    const positionNow = await getPositionOnInit(binance);
+    const positionNow = await getPosition(binance);
     console.log('currentPosition: ', positionNow);
     //
     setInterval(async () => { // get prices so we can decide on how to trade
         const {maxPrice, minPrice, averagePrice, lastPrice} = priceRange();
-        console.log('currentPosition:', await getPositionOnInit(binance));
+        console.log('currentPosition:', await getPosition(binance));
 
         doStuff(binance, {maxPrice, minPrice, averagePrice, lastPrice})
     }, 30 * 1000);
