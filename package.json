@@ -4,7 +4,10 @@
   "description": "Use TradingView Chart Alerts to buy/sell crypto.",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "show:trades": "npx json2csv -i ./src/trades/trades.json  -p",
+    "out:trades": "npx json2csv -i ./src/trades/trades.json -o ./csv-data/trades.csv",
+    "calc:pl": "node calc-pl.js"
   },
   "author": "Vince Lynch",
   "license": "MIT",
@@ -14,6 +17,7 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "form-data": "^4.0.0",
+    "json2csv": "^5.0.6",
     "knex": "^0.21.17",
     "mysql": "^2.18.1",
     "node-binance-api": "^0.9.8",
