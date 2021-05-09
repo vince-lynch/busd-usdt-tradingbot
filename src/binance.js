@@ -121,12 +121,13 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
 
     const { openBuyOrders, openSellOrders } = await getOpenOrders(binance);
     //const { price, qty } = await getLastTrade(binance);
+    console.log('openOrders:', openBuyOrders, openSellOrders);
 
 
     /**
      * In an order
      */
-    if(BUSD > 2){
+    if(BUSD > 2 || openSellOrders.length){
       // my last buy in (trade), must be relevant because I am in the asset.
       // and i've either already placed the sell limit order
       if(openSellOrders.length){
@@ -138,7 +139,8 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
            * if price moves whilst trying to sell, update sell price to break even price
            * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
            */
-          if(minPrice < position.priceBelow){
+          if(maxPrice <= position.currentPosition ){
+             // if there is no opportunity to sell at the price above our buy-in price anymore, then
             await updateSellToBreakEven(binance, openSellOrders[0].orderId);
           }
         }
