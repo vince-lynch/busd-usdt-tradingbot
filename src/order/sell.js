@@ -1,5 +1,5 @@
 import { cancelOrder } from './cancel.js';
-import { position } from './index.js';
+import { position } from '../position/index.js';
 
 /**
  * Sets the sell price to be the break even price i.e. price bought in at.
