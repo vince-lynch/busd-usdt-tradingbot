@@ -196,7 +196,7 @@ const checkForSell = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {max
             * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
             */
             if (maxPrice <= position.currentPosition) { // if there is no opportunity to sell at the price above our buy-in price anymore, then
-              if (parseFloat(openSellOrders[0].price) < position.currentPosition) { 
+              if (parseFloat(openSellOrders[0].price) != position.currentPosition) { 
                 /**
                 * we are only adjusting our sell position - to break even - if we haven't already got
                 * a sell order placed at our break even price
