@@ -130,9 +130,9 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
       // We are not in the asset, so we want to buy.
       // and we don't have an open buy order open
       if (currentPrice < 0.9996 // no buy liquidity at more than 0.9995
-      && openBuyOrders.length == 0
-      // only buy if no buy orders open
-      // no min buy price
+        && openBuyOrders.length == 0
+        // only buy if no buy orders open
+        // no min buy price
       ) {
           // never buy at 0.9996 //  must be lower.
           // const buyPrice = currentPrice - 0.0001;
@@ -220,15 +220,10 @@ const doStuff = async (binance, {maxPrice, minPrice, averagePrice, lastPrice}) =
       console.log('openOrders:', openBuyOrders, openSellOrders);
 
       /**
-       * This is crazy, re-think this, its just I wonder if there is a buy after the sell has gone through.
-       * or a sell after the buy has gone through.
-       * I dunno, maybe just wait, or have a listener for when orders have been turned into trades.
+       * checking for buy and sell
        */
-      await checkForSell(binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxPrice, minPrice, averagePrice, lastPrice});
       await checkForBuy(binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxPrice, minPrice, averagePrice, lastPrice});
       await checkForSell(binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxPrice, minPrice, averagePrice, lastPrice});
-      await checkForBuy(binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxPrice, minPrice, averagePrice, lastPrice});
-
     });
 }
 
