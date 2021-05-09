@@ -1,4 +1,4 @@
-import { startTerminalChart } from './src/binance.js'
+import { startBusdUsdtBot } from './src/binance.js'
 import Binance from 'node-binance-api'
 import dotenv from 'dotenv'
 
@@ -12,4 +12,4 @@ const binance = new Binance().options({
 });
 
 
-startTerminalChart(binance);
+startBusdUsdtBot(binance);
