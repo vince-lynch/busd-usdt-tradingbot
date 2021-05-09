@@ -104,8 +104,8 @@ const setBuyAtNewLowest = (binance, minPrice) => {
  * if price moves whilst trying to sell, update sell price to break even price
  * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
  */
-const updateSellToBreakEven = async(binance, orderId) => {
-  await cancelOrder(binance,orderId);
+const updateSellToBreakEven = async(binance, openSellOrder) => {
+  await cancelOrder(binance, openSellOrder.orderId);
   await setSellAtBreakEven(binance, position.currentPosition);
 }
 
@@ -139,9 +139,15 @@ const doStuff = async(binance, { maxPrice, minPrice, averagePrice, lastPrice }) 
            * if price moves whilst trying to sell, update sell price to break even price
            * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
            */
-          if(maxPrice <= position.currentPosition ){
+          if(maxPrice <= position.currentPosition){
              // if there is no opportunity to sell at the price above our buy-in price anymore, then
-            await updateSellToBreakEven(binance, openSellOrders[0].orderId);
+            if(parseFloat(openSellOrders[0].price) < position.currentPosition){
+              /**
+               * we are only adjusting our sell position - to break even - if we haven't already got
+               * a sell order placed at our break even price
+               */
+              await updateSellToBreakEven(binance, openSellOrders[0]);
+            }
           }
         }
 
