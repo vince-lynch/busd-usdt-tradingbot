@@ -149,7 +149,14 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {BUSD, USDT}, {maxP
           * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
           */
           if (maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)) {
+
+            if(parseFloat(openBuyOrders[0].price) > minPrice){
+              /**
+               * Only update the buyOrder to new lowest,
+               * if the minPrice is lower than the price on our currentBuyOrder
+               */
               await updateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, minPrice);
+            }
           }
       }
     }
