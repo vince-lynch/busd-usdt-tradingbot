@@ -25,8 +25,9 @@ import { position } from '../position/index.js';
 * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
 */
 const updateSellToBreakEven = async (binance, openSellOrder) => {
-  await cancelOrder(binance, openSellOrder.orderId);
-  await setSellAtBreakEven(binance, position.currentPosition);
+  return cancelOrder(binance, orderId)
+  .then((orderCancelled) => setSellAtBreakEven(binance, position.currentPosition))
+  .catch((err) => console.warn('ERROR: Cant place new SELL order, because couldnt cancel old one', err))
 }
 
 /**
