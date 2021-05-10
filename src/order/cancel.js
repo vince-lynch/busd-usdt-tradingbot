@@ -2,10 +2,14 @@
  * Cancels any pending orders
  */
  const cancelOrder = (binance, orderId) => {
-  return new Promise(async (resolve) => {
+  return new Promise(async (resolve,) => {
       binance.cancel("BUSDUSDT", orderId, (error, response, symbol) => {
-          console.info(symbol + " cancel response:", response);
-          resolve();
+          if(error == null){
+            console.info(symbol + " cancel response:", response);
+            resolve();
+          } else {
+            reject(error)
+          }
       });
   })
 }
