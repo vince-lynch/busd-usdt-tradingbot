@@ -1,13 +1,17 @@
 import { listOrdersMargin } from './list.js';
 
 /**
- * Cancels any pending orders
+ * Cancels specified pending order
  */
  const cancelOrder = (binance, orderId) => {
-  return new Promise(async (resolve) => {
+  return new Promise(async (resolve,) => {
       binance.cancel("BUSDUSDT", orderId, (error, response, symbol) => {
-          console.info(symbol + " cancel response:", response);
-          resolve();
+          if(error == null){
+            console.info(symbol + " cancel response:", response);
+            resolve();
+          } else {
+            reject(error)
+          }
       });
   })
 }
@@ -21,9 +25,11 @@ const cancelOrderMargin = (binance, orderId) => {
     binance.mgCancel("BUSDUSDT", orderId, (error, response, symbol) => {
       if(error){
         console.log('cancel error:', orderId, error);
+        reject(error);
+      } else {
+        console.info(symbol + " cancel response:", response);
+        resolve(response);
       }
-      console.info(symbol + " cancel response:", response);
-      resolve();
     })
   });
 }

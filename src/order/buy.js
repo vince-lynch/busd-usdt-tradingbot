@@ -30,8 +30,9 @@ const setBuyAtNewLowestMargin = (binance, minPrice) => {
 }
 
 const updateBuyPriceToNewLowest = async (binance, orderId, minPrice) => {
-  await cancelOrder(binance, orderId);
-  await setBuyAtNewLowest(binance, minPrice);
+  return cancelOrder(binance, orderId)
+  .then((orderCancelled) => setBuyAtNewLowest(binance, minPrice))
+  .catch((err) => console.warn('ERROR: Cant place new BUY order, because couldnt cancel old one', err))
 }
 
 
