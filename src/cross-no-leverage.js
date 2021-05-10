@@ -1,5 +1,10 @@
 import fs from 'fs'
+import { startPricesFeed } from './price/feed.js'
+import { startListeningBook } from './depth/book.js'
+import EventEmitter from 'events';
 const FS_CROSS_ACCOUNT = `./src/margin/cross-account.json`;
+
+const eventEmitter = new EventEmitter();
 
 const loadAccountDetails = (binance) => {
   return new Promise((resolve) => {
@@ -23,8 +28,22 @@ const loadAccountDetails = (binance) => {
 }
 
 const crossNoLeverage = async(binance) => {
-  await loadAccountDetails(binance);
+  eventEmitter.on('newPrice', (priceRange) => {
+    console.log('newPrice', priceRange);
+  })
+  startPricesFeed(binance, eventEmitter);
+  //
+  //startListeningBook(binance, eventEmitter)
+
+  eventEmitter.on('start', number => {
+    console.log(`started ${number}`)
+  })
+  //await loadAccountDetails(binance);
 }
+
+setTimeout(()=> {
+  eventEmitter.emit('start', 23);
+}, 8000)
 
 export {
   crossNoLeverage

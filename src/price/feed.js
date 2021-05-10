@@ -1,20 +1,27 @@
 import {average, max, min} from '../utils/math.js';
 
 let currentPrice = 0.9989;
-let dataLimit = 120;
-let dataSoFar = new Array(dataLimit)
+let dataSoFar = []
 
 const priceRange = () => {
     return {
         maxPrice: max(dataSoFar),
         minPrice: min(dataSoFar),
-        averagePrice: average(dataSoFar),
-        lastPrice: parseFloat(dataSoFar[dataSoFar.length - 1])
+        //averagePrice: average(dataSoFar),
+        lastPrice: parseFloat(currentPrice)
     };
 }
 
+const updatePriceStore = (priceFloat) => {
+  if(dataSoFar.length > 119){ // cap on memory to store
+    dataSoFar.shift() // remove first price
+  }
+  dataSoFar.push(priceFloat) // add a price
+  currentPrice = priceFloat;
+}
 
-const startPricesFeed = (binance) => {
+
+const startPricesFeed = (binance, eventEmitter) => {
   binance.websockets.trades(['BUSDUSDT'], (trades) => {
       let {
           e: eventType,
@@ -26,10 +33,16 @@ const startPricesFeed = (binance) => {
           a: tradeId
       } = trades;
 
+      const priceFloat = parseFloat(price);
+      // Do this before we update the array.
+      if(dataSoFar.includes(priceFloat) == false){
+        updatePriceStore(priceFloat)
+        // Emit a new price if there is one, so we can act on it.
+        eventEmitter.emit('newPrice', priceRange());
+      } else {
+        updatePriceStore(priceFloat)
+      }
       // console.log('price', price, 'quantity', quantity);
-      dataSoFar.shift() // remove first price
-      dataSoFar.push(price) // add a price
-      currentPrice = parseFloat(price);
   });
 }
 
