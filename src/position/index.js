@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { getLastTrade } from '../trades/trades.js';
+import { getLastTrade, getLastTradeMargin } from '../trades/trades.js';
 const POSITION_LOG = `./src/position/position.json`;
 
 const position = {
@@ -30,8 +30,20 @@ const getPosition = async (binance) => {
   })
 }
 
+const getPositionMargin = async(binance) => {
+  return new Promise(async (resolve) => {
+    const lastTrade = await getLastTradeMargin(binance);
+    if (lastTrade.side == 'BUY') {
+        logPosition(lastTrade);
+        resolve(position);
+    }
+    resolve(position);
+  })
+}
+
 export {
   position,
   logPosition,
-  getPosition
+  getPosition,
+  getPositionMargin
 }
