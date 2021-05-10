@@ -39,14 +39,16 @@ const setSellAtBreakEvenMargin = (binance, boughtInPrice) => {
 * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
 */
 const updateSellToNewMax = async (binance, openSellOrder, maxPrice) => {
-  await cancelOrder(binance, openSellOrder.orderId);
-  await setSellAtMax(binance, maxPrice);
+  return cancelOrder(binance, orderId)
+  .then((orderCancelled) => setSellAtMax(binance, position.currentPosition))
+  .catch((err) => console.warn('ERROR: Cant place new SELL order, because couldnt cancel old one', err))
 }
 
 
 const updateSellOrderMargin = async(binance, openSellOrder, maxPrice)=> {
-  await cancelOrderMargin(binance, openSellOrder.orderId);
-  await setSellAtBreakEvenMargin(binance, maxPrice);
+  return cancelOrderMargin(binance, openSellOrder.orderId)
+  .then((orderCancelled) => setSellAtBreakEvenMargin(binance, maxPrice))
+  .catch((err) => console.warn('ERROR: Cant place new SELL order, because couldnt cancel old one', err))
 }
 
 /**
