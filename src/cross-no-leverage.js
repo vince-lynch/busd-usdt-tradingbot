@@ -27,7 +27,9 @@ const crossNoLeverage = async(binance) => {
     /**
      * Price has moved, make action or adjustment
      */
-    //adjustPosition(binance); -- off until I understand why events aren't been picked up.
+    if(priceRange.maxPrice != priceRange.minPrice){
+      adjustPosition(binance); //-- off until I understand why events aren't been picked up.
+    }
   });
 
   eventEmitter.on('orderEvent', (assetChanges) => {
@@ -35,7 +37,7 @@ const crossNoLeverage = async(binance) => {
     /**
      * Price has moved, make action or adjustment
      */
-     //adjustPosition(binance); -- off until I understand why events aren't been picked up.
+     adjustPosition(binance); //-- off until I understand why events aren't been picked up.
   })
   // Listens for when orders change. i.e. trade is filled.
   crossMarginOrderListener(binance, eventEmitter);
@@ -46,9 +48,9 @@ const crossNoLeverage = async(binance) => {
   //cancelAllOrdersMargin(binance)
   // Had to add interval back
   // For some reason the listeners above are faulty, not sure if sockets connection breaks maybe?
-  setInterval(()=>{
-    adjustPosition(binance);
-  }, 30 * 1000)
+  // setInterval(()=>{
+  //   adjustPosition(binance);
+  // }, 30 * 1000)
 }
 
 
