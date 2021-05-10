@@ -14,7 +14,7 @@ const binance = new Binance().options({
 });
 
 
-startBusdUsdtBot(binance);
+//startBusdUsdtBot(binance);
 
 /**
  * So weird how the cross leverage has been playing up,.
@@ -24,4 +24,4 @@ startBusdUsdtBot(binance);
  */
 
 //busdUsdtWithLeverage(binance);
-//crossNoLeverage(binance);
+crossNoLeverage(binance);

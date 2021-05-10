@@ -43,7 +43,7 @@ const crossNoLeverage = async(binance) => {
   startPricesFeed(binance, eventEmitter);
 
 
-  cancelAllOrdersMargin(binance)
+  //cancelAllOrdersMargin(binance)
   // Had to add interval back
   // For some reason the listeners above are faulty, not sure if sockets connection breaks maybe?
   setInterval(()=>{
