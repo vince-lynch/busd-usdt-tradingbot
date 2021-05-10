@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { startPricesFeed } from './price/feed.js'
-import { startListeningBook } from './depth/book.js'
+import { crossMarginOrderListener } from './order/listener.js'
 import EventEmitter from 'events';
 const FS_CROSS_ACCOUNT = `./src/margin/cross-account.json`;
 
@@ -28,22 +28,27 @@ const loadAccountDetails = (binance) => {
 }
 
 const crossNoLeverage = async(binance) => {
-  eventEmitter.on('newPrice', (priceRange) => {
-    console.log('newPrice', priceRange);
-  })
-  startPricesFeed(binance, eventEmitter);
-  //
-  //startListeningBook(binance, eventEmitter)
+  /**
+   * Using events, rather than intervals
+   * means quicker placing of trades based on events.
+   */
+  eventEmitter.on('priceEvent', (priceRange) => {
+    console.log('priceEvent', priceRange);
+  });
 
-  eventEmitter.on('start', number => {
-    console.log(`started ${number}`)
+  eventEmitter.on('orderEvent', (assetChanges) => {
+    console.log('orderEvent', assetChanges);
   })
+  // Listens for when orders change. i.e. trade is filled.
+  crossMarginOrderListener(binance, eventEmitter);
+  // Listens for when the price changes, i.e. new low/high for the past 120 trades.
+  startPricesFeed(binance, eventEmitter);
+
+  // Not needed for now, just implementing functionality we had but on cross margin account
+  // But with no 30 second setInterval
   //await loadAccountDetails(binance);
 }
 
-setTimeout(()=> {
-  eventEmitter.emit('start', 23);
-}, 8000)
 
 export {
   crossNoLeverage

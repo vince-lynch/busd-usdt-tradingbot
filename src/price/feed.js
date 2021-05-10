@@ -38,7 +38,7 @@ const startPricesFeed = (binance, eventEmitter) => {
       if(dataSoFar.includes(priceFloat) == false){
         updatePriceStore(priceFloat)
         // Emit a new price if there is one, so we can act on it.
-        eventEmitter.emit('newPrice', priceRange());
+        eventEmitter.emit('priceEvent', priceRange());
       } else {
         updatePriceStore(priceFloat)
       }
