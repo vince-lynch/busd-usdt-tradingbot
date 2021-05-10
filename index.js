@@ -1,4 +1,6 @@
 import { startBusdUsdtBot } from './src/binance.js'
+import { busdUsdtWithLeverage } from './src/leveraged.js'
+import { crossNoLeverage } from './src/cross-no-leverage.js';
 import Binance from 'node-binance-api'
 import dotenv from 'dotenv'
 
@@ -12,4 +14,7 @@ const binance = new Binance().options({
 });
 
 
-startBusdUsdtBot(binance);
+//startBusdUsdtBot(binance);
+//busdUsdtWithLeverage(binance);
+
+crossNoLeverage(binance);
