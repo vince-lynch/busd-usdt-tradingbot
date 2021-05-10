@@ -14,7 +14,14 @@ const binance = new Binance().options({
 });
 
 
-//startBusdUsdtBot(binance);
-//busdUsdtWithLeverage(binance);
+startBusdUsdtBot(binance);
 
-crossNoLeverage(binance);
+/**
+ * So weird how the cross leverage has been playing up,.
+ * Fairly sure the code is simple, .. 
+ * orders endpoint just returns the wrong information
+ * (maybe there is another way?!)
+ */
+
+//busdUsdtWithLeverage(binance);
+//crossNoLeverage(binance);

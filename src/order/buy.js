@@ -1,5 +1,5 @@
 import { currentPrice } from '../price/feed.js'
-import { cancelOrder, cancelOrderMargin } from './cancel.js';
+import { cancelOrder, cancelOrderMargin, cancelAllOrdersMargin } from './cancel.js';
 
 const setBuyAtNewLowest = (binance, minPrice) => {
   return new Promise(async (resolve) => {
@@ -76,7 +76,7 @@ const checkForBuy = (binance, openSellOrders, openBuyOrders, {
         * if max price, is two ticks higher than where we want to buy in.. then adjust to 1 below.
         * if min price is anywhere beneath where we are trying to buy in, then adjust to min price.
         */
-        if (maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)) {
+        if (maxPrice > parseFloat(openBuyOrders[0].price) || minPrice < parseFloat(openBuyOrders[0].price)) {
 
           if (parseFloat(openBuyOrders[0].price) != minPrice) { /**
              * Only update the buyOrder to new lowest,
@@ -106,7 +106,7 @@ const placeCrossMarginBuy = (binance, amount = 12, minPrice) => {
 }
 
 const marginUpdateBuyPriceToNewLowest = async (binance, orderId, minPrice) => {
-  await cancelOrderMargin(binance, orderId);
+  await cancelAllOrdersMargin(binance);
   await setBuyAtNewLowestMargin(binance, minPrice);
 }
 
@@ -118,15 +118,15 @@ const checkForBuyMargin = (binance, openSellOrders, openBuyOrders, {
     if (BUSD < 3 && openSellOrders.length == 0) {
       if (currentPrice < 1.0004 // no buy liquidity at more than 0.9995
       && openBuyOrders.length == 0) {
+        console.log('WILL PLACE BUY ORDER @ ', minPrice);
         placeCrossMarginBuy(binance, 12, minPrice);
       }
       if (currentPrice < 1.0004 // no buy liquidity at more than 0.9995
       && openBuyOrders.length > 0) {
-        if (maxPrice > parseFloat(openBuyOrders[0].price) + 0.0001 || minPrice < parseFloat(openBuyOrders[0].price)) {
-
-          if (parseFloat(openBuyOrders[0].price) != minPrice) {
-            await marginUpdateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, minPrice);
-          }
+        if (minPrice != parseFloat(openBuyOrders[0].price)) {
+          // We always want to adjust the max price we can get
+          console.log(`ADJUSTING OPEN BUY ORDER from: ${parseFloat(openBuyOrders[0].price)} to:${minPrice}`);
+          await marginUpdateBuyPriceToNewLowest(binance, openBuyOrders[0].orderId, minPrice);
         }
       }
     }

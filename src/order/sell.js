@@ -4,9 +4,9 @@ import { position } from '../position/index.js';
 /**
  * Sets the sell price to be the break even price i.e. price bought in at.
  */
-const setSellAtBreakEven = (binance, boughtInPrice) => {
+const setSellAtMax = (binance, maxPrice) => {
   return new Promise(async (resolve) => {
-    binance.sell("BUSDUSDT", 12, boughtInPrice, {
+    binance.sell("BUSDUSDT", 12, maxPrice, {
       type: 'LIMIT'
     }, (error, response) => {
       console.log('limit sell error', error)
@@ -33,14 +33,14 @@ const setSellAtBreakEvenMargin = (binance, boughtInPrice) => {
 }
 
 /**
-* UpdateSellToBreakEven
+* updateSellToNewMax
 * 
 * if price moves whilst trying to sell, update sell price to break even price
 * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
 */
-const updateSellToBreakEven = async (binance, openSellOrder) => {
+const updateSellToNewMax = async (binance, openSellOrder, maxPrice) => {
   await cancelOrder(binance, openSellOrder.orderId);
-  await setSellAtBreakEven(binance, position.currentPosition);
+  await setSellAtMax(binance, maxPrice);
 }
 
 
@@ -71,13 +71,11 @@ const checkForSell = (binance, openSellOrders, openBuyOrders, {
           * if price moves whilst trying to sell, update sell price to break even price
           * if its bought in at 0.9988, and it sees 0.9987, it should cancel pending sell order at 0.9989, and make new sell order at 0.9988
           */
-          if (maxPrice <= position.currentPosition) { // if there is no opportunity to sell at the price above our buy-in price anymore, then
-            if (parseFloat(openSellOrders[0].price) != position.currentPosition) { /**
-              * we are only adjusting our sell position - to break even - if we haven't already got
-              * a sell order placed at our break even price
-              */
-              await updateSellToBreakEven(binance, openSellOrders[0]);
-            }
+          if (parseFloat(openSellOrders[0].price) != maxPrice) { /**
+            * we are only adjusting our sell position - to break even - if we haven't already got
+            * a sell order placed at our break even price
+            */
+            await updateSellToNewMax(binance, openSellOrders[0], maxPrice);
           }
         }
 
@@ -127,12 +125,14 @@ const checkForSellMargin = (binance, openSellOrders, openBuyOrders, {
            * If max price has changed, update sell order to get the max price
            */
           if (parseFloat(openSellOrders[0].price) != maxPrice) {
+            console.log(`WILL ADJUST SELL ORDER from ${parseFloat(openSellOrders[0].price)} to: ${maxPrice}`);
             await updateSellOrderMargin(binance, openSellOrders[0], maxPrice);
           }
         }
 
       } else {
         if (openBuyOrders.length == 0) {
+          console.log('WILL PLACE SELL ORDER @ ', maxPrice);
           placeCrossMarginSell(binance, 12, maxPrice)
         }
       }

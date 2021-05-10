@@ -1,6 +1,7 @@
 import { priceRange, startPricesFeed } from './price/feed.js'
 import { crossMarginOrderListener } from './order/listener.js';
-import { getPosition } from './position/index.js';
+import { cancelAllOrdersMargin } from './order/cancel.js';
+import { getPositionMargin } from './position/index.js';
 import { makeActionCrossMargin } from './action/index.js';
 import EventEmitter from 'events';
 //const FS_CROSS_ACCOUNT = `./src/margin/cross-account.json`;
@@ -12,8 +13,8 @@ const eventEmitter = new EventEmitter();
  */
 const adjustPosition = async(binance) => {
   const { maxPrice, minPrice } = priceRange();
-  console.log('currentPosition:', await getPosition(binance));
-  makeActionCrossMargin(binance, { maxPrice, minPrice })
+  console.log('currentPosition:', await getPositionMargin(binance));
+  await makeActionCrossMargin(binance, { maxPrice, minPrice })
 }
 
 const crossNoLeverage = async(binance) => {
@@ -26,7 +27,7 @@ const crossNoLeverage = async(binance) => {
     /**
      * Price has moved, make action or adjustment
      */
-     adjustPosition(binance);
+    //adjustPosition(binance); -- off until I understand why events aren't been picked up.
   });
 
   eventEmitter.on('orderEvent', (assetChanges) => {
@@ -34,16 +35,20 @@ const crossNoLeverage = async(binance) => {
     /**
      * Price has moved, make action or adjustment
      */
-     adjustPosition(binance);
+     //adjustPosition(binance); -- off until I understand why events aren't been picked up.
   })
   // Listens for when orders change. i.e. trade is filled.
   crossMarginOrderListener(binance, eventEmitter);
   // Listens for when the price changes, i.e. new low/high for the past 120 trades.
   startPricesFeed(binance, eventEmitter);
 
-  // Not needed for now, just implementing functionality we had but on cross margin account
-  // But with no 30 second setInterval
-  //await loadAccountDetails(binance);
+
+  cancelAllOrdersMargin(binance)
+  // Had to add interval back
+  // For some reason the listeners above are faulty, not sure if sockets connection breaks maybe?
+  setInterval(()=>{
+    adjustPosition(binance);
+  }, 30 * 1000)
 }
 
 
