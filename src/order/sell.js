@@ -44,9 +44,9 @@ const updateSellToBreakEven = async (binance, openSellOrder) => {
 }
 
 
-const updateSellToBreakEvenMargin = async(binance, openSellOrder)=> {
+const updateSellOrderMargin = async(binance, openSellOrder, maxPrice)=> {
   await cancelOrderMargin(binance, openSellOrder.orderId);
-  await setSellAtBreakEvenMargin(binance, position.currentPosition);
+  await setSellAtBreakEvenMargin(binance, maxPrice);
 }
 
 /**
@@ -123,10 +123,11 @@ const checkForSellMargin = (binance, openSellOrders, openBuyOrders, {
     if (BUSD > 2 || openSellOrders.length) {
       if (openSellOrders.length) {
         if (openBuyOrders.length == 0) {
-          if (maxPrice <= position.currentPosition) { // if there is no opportunity to sell at the price above our buy-in price anymore, then
-            if (parseFloat(openSellOrders[0].price) != position.currentPosition) {
-              await updateSellToBreakEvenMargin(binance, openSellOrders[0]);
-            }
+          /**
+           * If max price has changed, update sell order to get the max price
+           */
+          if (parseFloat(openSellOrders[0].price) != maxPrice) {
+            await updateSellOrderMargin(binance, openSellOrders[0], maxPrice);
           }
         }
 
